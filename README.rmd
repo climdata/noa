@@ -71,3 +71,65 @@ mp <- ggplot() +
 mp
 
 ```
+
+
+https://psl.noaa.gov/gcos_wgsp/Timeseries/Data/rnao.long.data
+
+Luterbacher, J., Xoplaki, E., Dietrich, D., Jones, P.D., Davies, T.D., Portis, D., Gonzalez-Rouco, J.F., von Storch, H., Gyalistras, D., Casty, C., and Wanner, H., 2002. Extending North Atlantic Oscillation Reconstructions Back to 1500. Atmos. Sci. Lett., doi:10.1006/asle.2001.0044.
+Luterbacher, J., C. Schmutz, D. Gyalistras, E. Xoplaki, and H. Wanner, 1999: Reconstruction of monthly NAO and EU indices back to AD 1675, Geophys. Res. Lett., 26, 2745-2748.
+
+```{sh downloads2}
+ [ -f ./download/rnao.long.data ] && mv -f ./download/rnao.long.data ./download/rnao.long.data.bck
+ wget -q -P download https://psl.noaa.gov/gcos_wgsp/Timeseries/Data/rnao.long.data
+ 
+  #remove first line
+ sed -i -e 1,1d ./download/rnao.long.data
+  sed -i '1s/^/year,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12\n/' ./download/rnao.long.data
+ sed -i 's/^ //g' ./download/rnao.long.data
+ sed -i 's/   / /g' ./download/rnao.long.data
+ sed -i 's/  / /g' ./download/rnao.long.data
+ sed -i 's/ /,/g' ./download/rnao.long.data
+ 
+ cat ./download/rnao.long.data | head -n -4 > ./download/rnao.long.data2
+ mv ./download/rnao.long.data2 ./download/rnao.long.data
+
+```
+
+## Convert to standard format
+
+```{r convert2}
+library(reshape2)
+noa <- read.csv("./download/rnao.long.data", sep=",")
+noaNew <- melt(noa, id.vars = c("year"))
+noaNew <- subset(noaNew, -99 < noaNew$value)
+names(noaNew)[names(noaNew) == "variable"] <- "month"
+names(noaNew)[names(noaNew) == "value"] <- "noa1"
+noaNew$month <- strtoi(gsub("m", "", noaNew$month))
+
+noaNew$ts <- signif(noaNew$year + (noaNew$month-0.5)/12, digits=6)
+noaNew$time <- paste(noaNew$year,noaNew$month, '15 00:00:00', sep='-')
+
+noaNew$noa2 <- round(noaNew$noa1)
+noaNew$noa2[noaNew$noa2 < -4] <- -4
+noaNew$noa2[noaNew$noa2 > 4] <- 4
+
+noaNew <- noaNew[order(noaNew$time),]
+
+write.table(noaNew, file = "./csv/monthly_noa2.csv", append = FALSE, quote = TRUE, sep = ",",
+            eol = "\n", na = "NA", dec = ".", row.names = FALSE,
+            col.names = TRUE, qmethod = "escape", fileEncoding = "UTF-8")
+```
+
+## Plot diagramm
+
+```{r plot2, echo=TRUE}
+require("ggplot2")
+noa <- read.csv("./csv/monthly_noa2.csv", sep=",")
+mp <- ggplot() +
+      geom_line(aes(y=noa$noa2, x=noa$ts), color="blue") +
+      xlab("Year") + ylab("NOA")
+mp
+
+```
+
+
